@@ -58,24 +58,46 @@ function loadCachedPayload(){
  * fails (offline, API not yet deployed, wrong URL, etc.). Throws only if
  * neither a live fetch nor a cached copy is available.
  */
-async function loadDataset(){
-  const url = (typeof CONFIG !== 'undefined' && CONFIG.DATA_SOURCE_URL) ? CONFIG.DATA_SOURCE_URL : '';
-  if(!url || url.includes('YOUR_DEPLOYMENT_ID')){
-    const cached = loadCachedPayload();
-    if(cached){ console.warn('CONFIG.DATA_SOURCE_URL is not set — showing last cached data.'); return cached; }
-    throw new Error('CONFIG.DATA_SOURCE_URL is not set. Open config.js and paste in your Apps Script Web App URL.');
-  }
-  try{
-    const res = await fetch(url, { cache:'no-store' });
-    if(!res.ok) throw new Error('API responded with status '+res.status);
-    const payload = await res.json();
-    if(!payload || !payload.dims || !payload.fact) throw new Error('API response was missing dims/fact.');
+async function loadDataset() {
+
+  try {
+
+    const supabase = window.supabase.createClient(
+      CONFIG.SUPABASE_URL,
+      CONFIG.SUPABASE_KEY
+    );
+
+    const { data, error } = await supabase
+      .from(CONFIG.SUPABASE_TABLE)
+      .select("*");
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error("No data was returned from Supabase.");
+    }
+
+    const payload = convertSupabaseData(data);
+
     cachePayloadLocally(payload);
+
     return payload;
-  }catch(err){
-    console.error('Live data fetch failed, falling back to cached copy:', err);
+
+  } catch (err) {
+
+    console.error(
+      "Supabase data loading failed:",
+      err
+    );
+
     const cached = loadCachedPayload();
-    if(cached) return cached;
+
+    if (cached) {
+      return cached;
+    }
+
     throw err;
   }
 }
@@ -127,6 +149,17 @@ function loadPayloadObject(payload){
   buildReverseMaps();
   buildPeriods();
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 /* ===================== FILTER STATE ===================== */
