@@ -477,7 +477,7 @@ function rankTableHTML(rows, opts){
   const maxVal = rows.length? Math.max(...rows.map(r=>Math.abs(r.netRevenue)),1) : 1;
   if(!rows.length) return emptyStateHTML('No results', 'Try widening your filters.');
   return `<table class="dtable"><thead><tr>
-      <th>${opts.nameLabel||'Name'}</th><th class="num">Total Price</th><th class="num">qty</th><th class="num">Tax Amount</th><th class="num">Subtotal</th><th class="num">Cash Paid</th><th>Share</th>
+      <th>${opts.nameLabel||'Name'}</th><th class="num">Total Price</th><th class="num">qty</th><th>Share</th>
     </tr></thead><tbody>
     ${rows.map((r,i)=>{
       const neg = r.netRevenue<0;
@@ -486,9 +486,6 @@ function rankTableHTML(rows, opts){
         <td class="name-cell"><span class="rank">${i+1}</span>${r.name}</td>
         <td class="num"${neg?' style="color:var(--negative)"':''}>${fmtMoney(r.netRevenue)}</td>
         <td class="num">${fmtNum(r.netUnits)}</td>
-        <td class="num">${fmtMoney2(r.totalTax||0)}</td>
-        <td class="num">${fmtMoney2(r.totalSubtotal||0)}</td>
-        <td class="num">${fmtMoney2(r.totalCashPaid||0)}</td>
         <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill"${neg?' style="background:var(--negative);width:'+Math.max(4,Math.abs(r.netRevenue)/maxVal*100)+'%"':' style="width:'+Math.max(4,Math.abs(r.netRevenue)/maxVal*100)+'%"'}></div></div></div></td>
       </tr>`;}).join('')}
     </tbody></table>`;
@@ -517,7 +514,6 @@ function renderOverview(){
         <div class="kpi-grid" id="kpiRow1" style="margin-bottom:16px;"></div>
         <div class="kpi-grid secondary" id="kpiRow2" style="margin-bottom:16px;"></div>
         <div class="kpi-grid" id="kpiRow3" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;"></div>
-        <div class="kpi-grid" id="kpiRow4" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px;"></div>
       </div>
       <div class="panel" id="calendarPanel" style="width:420px;flex-shrink:0;"></div>
     </div>
@@ -607,8 +603,8 @@ function renderKPIRows(idx, s){
   const kpiRow2El = document.getElementById('kpiRow2');
   kpiRow2El.style.gridTemplateColumns = 'repeat(2,1fr)';
   kpiRow2El.innerHTML = [
-    kpiCard({icon:'store', iconBg:'var(--teal-tint)', iconColor:'var(--teal)', label:'Total Stores', value:fmtNum(s.activeStores)+' / '+fmtNum(DB.dims.stores.length), compact:true}),
-    kpiCard({icon:'users', iconBg:'var(--amber-tint)', iconColor:'#9C6B14', label:'Total Employee', value:fmtNum(s.activeEmployees)+' / '+fmtNum(DB.dims.employees.length), compact:true})
+    kpiCard({icon:'store', iconBg:'var(--teal-tint)', iconColor:'var(--teal)', label:'Store Name', value:fmtNum(s.activeStores)+' / '+fmtNum(DB.dims.stores.length), compact:true}),
+    kpiCard({icon:'users', iconBg:'var(--amber-tint)', iconColor:'#9C6B14', label:'Employee Name', value:fmtNum(s.activeEmployees)+' / '+fmtNum(DB.dims.employees.length), compact:true})
   ].join('');
 
   // Row 3 — Category KPIs: QPAY, Phone, Accessory, Others
@@ -648,24 +644,14 @@ function renderKPIRows(idx, s){
       </div>
       <div class="kpi-cat-val" style="color:${col}">${fmtMoney(Math.abs(d.price),true)}</div>
       <div class="kpi-cat-row">
-        <span class="kpi-cat-chip">${fmtNum(d.count)} Counts</span>
-        <span class="kpi-cat-chip">${fmtNum(d.invs.size)} Invoice</span>
+        <span class="kpi-cat-chip">${fmtNum(d.count)} txns</span>
+        <span class="kpi-cat-chip">${fmtNum(d.invs.size)} inv</span>
       </div>
     </div>`;
   }
 
   const row3 = document.getElementById('kpiRow3');
   if(row3) row3.innerHTML = ['qpay','phone','acc','other'].map(catCard).join('');
-
-  const dTax      = periodDelta(i=>summarize(i).totalTax);
-  const dSubtotal = periodDelta(i=>summarize(i).totalSubtotal);
-  const dCash     = periodDelta(i=>summarize(i).totalCashPaid);
-  const row4 = document.getElementById('kpiRow4');
-  if(row4) row4.innerHTML = [
-    kpiCard({icon:'dollar',  iconBg:'var(--amber-tint)', iconColor:'#9C6B14',        label:'Total Tax Amount', value:fmtMoney(s.totalTax),      delta:deltaBadge(dTax),      tip:'Sum of taxamount across all matching rows.'}),
-    kpiCard({icon:'table',   iconBg:'var(--teal-tint)',  iconColor:'var(--teal)',    label:'Total Subtotal',   value:fmtMoney(s.totalSubtotal), delta:deltaBadge(dSubtotal), tip:'Sum of subtotal across all matching rows.'}),
-    kpiCard({icon:'bolt',    iconBg:'var(--primary-tint)',iconColor:'var(--primary)',label:'Total Cash Paid',  value:fmtMoney(s.totalCashPaid), delta:deltaBadge(dCash),     tip:'Sum of cashpaid across all matching rows.'})
-  ].join('');
 }
 
 function renderTrendChart(idx){
@@ -997,15 +983,12 @@ function renderRefundEmployeesPanel(idx){
     ${!rows.length ? `<div class="empty-state">${ic('check')}<b>No refunds</b><span>No refund transactions in the current filters.</span></div>` : `
     <div class="table-wrap">
       <table class="dtable"><thead><tr>
-        <th>Employee</th><th class="num">Refund Value</th><th class="num">Count</th><th class="num">Tax Amount</th><th class="num">Subtotal</th><th class="num">Cash Paid</th><th>Share</th>
+        <th>Employee</th><th class="num">Refund Value</th><th class="num">Count</th><th>Share</th>
       </tr></thead><tbody>
       ${rows.map((r,i)=>`<tr data-idx="${r.idx}" style="cursor:pointer;">
         <td class="name-cell"><span class="rank" style="background:var(--negative-tint);color:var(--negative)">${i+1}</span>${r.name}</td>
         <td class="num" style="color:var(--negative)">${fmtMoney(Math.abs(r.netRevenue))}</td>
         <td class="num">${fmtNum(r.rowCount)}</td>
-        <td class="num">${fmtMoney2(r.totalTax)}</td>
-        <td class="num">${fmtMoney2(r.totalSubtotal)}</td>
-        <td class="num">${fmtMoney2(r.totalCashPaid)}</td>
         <td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="background:var(--negative);width:${Math.max(4,Math.abs(r.netRevenue)/maxVal*100)}%"></div></div></div></td>
       </tr>`).join('')}
       </tbody></table>
@@ -1136,10 +1119,7 @@ function refreshEntityTable(entityKey){
     {key:'netUnits', label:'qty', num:true},
     {key:'invoiceCount', label:'Invoice', num:true},
     {key:'avgPricePerUnit', label:'Avg price', num:true},
-    {key:'refundRate', label:'Refund %', num:true},
-    {key:'totalTax', label:'Tax Amount', num:true},
-    {key:'totalSubtotal', label:'Subtotal', num:true},
-    {key:'totalCashPaid', label:'Cash Paid', num:true}
+    {key:'refundRate', label:'Refund %', num:true}
   ];
   document.getElementById('entityTableWrap').innerHTML = !pageRows.length ? emptyStateHTML('No '+cfg.label.toLowerCase()+'s found','Try a different search or clear your filters.') : `
     <table class="dtable"><thead><tr>
@@ -1152,9 +1132,6 @@ function refreshEntityTable(entityKey){
       <td class="num">${fmtNum(r.invoiceCount)}</td>
       <td class="num"${r.avgPricePerUnit<0?' style="color:var(--negative)"':''}>${fmtMoney2(r.avgPricePerUnit)}</td>
       <td class="num">${fmtPct(r.refundRate)}</td>
-      <td class="num">${fmtMoney2(r.totalTax)}</td>
-      <td class="num">${fmtMoney2(r.totalSubtotal)}</td>
-      <td class="num">${fmtMoney2(r.totalCashPaid)}</td>
     </tr>`).join('')}
     </tbody></table>`;
   document.querySelectorAll('#entityTableWrap th').forEach(th=>{
@@ -1177,8 +1154,8 @@ function exportEntityCSV(entityKey){
   const sort = STATE.tableSort['list_'+entityKey] || {col:'netRevenue',dir:'desc'};
   const rows = sortRowsBy(searchRows(getEntityRows(entityKey), query, 'name'), sort.col, sort.dir);
   exportCSV(cfg.plural.toLowerCase()+'_export.csv',
-    [cfg.label,'Total Price','qty','Invoice','Avg price','Refund Rate','Tax Amount','Subtotal','Cash Paid'],
-    rows.map(r=>[r.name, r.netRevenue.toFixed(2), r.netUnits, r.invoiceCount, r.avgPricePerUnit.toFixed(2), (r.refundRate*100).toFixed(2)+'%', r.totalTax.toFixed(2), r.totalSubtotal.toFixed(2), r.totalCashPaid.toFixed(2)]));
+    [cfg.label,'Total Price','qty','Invoice','Avg price','Refund Rate'],
+    rows.map(r=>[r.name, r.netRevenue.toFixed(2), r.netUnits, r.invoiceCount, r.avgPricePerUnit.toFixed(2), (r.refundRate*100).toFixed(2)+'%']));
 }
 
 /* ---------------------------- GENERIC ENTITY DETAIL (drill-through) ---------------------------- */
@@ -1204,9 +1181,6 @@ function renderEntityDetail(entityKey){
         <div class="dh-stat"><b>${fmtNum(Math.abs(s.netUnits))}</b><span>Refund Qty</span></div>
         <div class="dh-stat"><b>${fmtNum(s.invoiceCount)}</b><span>Invoices</span></div>
         <div class="dh-stat"><b>${fmtNum(s.rowCount)}</b><span>Transactions</span></div>
-        <div class="dh-stat"><b>${fmtMoney(s.totalTax,true)}</b><span>Tax Amount</span></div>
-        <div class="dh-stat"><b>${fmtMoney(s.totalSubtotal,true)}</b><span>Subtotal</span></div>
-        <div class="dh-stat"><b>${fmtMoney(s.totalCashPaid,true)}</b><span>Cash Paid</span></div>
       </div>
     </div>
     ${!idx.length ? emptyStateHTML('No data for this '+cfg.label.toLowerCase()+' in the current filters', 'Try clearing a slicer above.') : `
@@ -1257,6 +1231,7 @@ function txnRowHTML(i){
   const r = DB.fact[i];
   return `<tr>
     <td>${r[F_INV]}</td>
+    <td>${fmtDateShort(DB.dims.dates[r[F_DATE]])}</td>
     <td>${DB.dims.markets[r[F_MARKET]]}</td>
     <td>${DB.dims.managers[r[F_DM]]}</td>
     <td>${DB.dims.stores[r[F_STORE]]}</td>
@@ -1268,13 +1243,10 @@ function txnRowHTML(i){
     <td><span class="badge ${statusBadgeClass(DB.dims.statuses[r[F_STATUS]])}">${DB.dims.statuses[r[F_STATUS]]}</span></td>
     <td class="num">${r[F_QTY]}</td>
     <td class="num">${fmtMoney2(r[F_PRICE])}</td>
-    <td class="num">${fmtMoney2(r[F_TAX])}</td>
-    <td class="num">${fmtMoney2(r[F_SUBTOTAL])}</td>
-    <td class="num">${fmtMoney2(r[F_CASHPAID])}</td>
   </tr>`;
 }
 function renderTxnTable(idxList, containerId){
-  const headers = ['Invoice','Market','DM','Store Name','Employee Name','itmdesc','Category','acttype','paytype','Status','qty','price','taxamount','subtotal','cashpaid'];
+  const headers = ['Invoice','Date','Market','DM','Store Name','Employee Name','itmdesc','Category','acttype','paytype','Status','qty','price'];
   const el = document.getElementById(containerId);
   el.innerHTML = !idxList.length ? emptyStateHTML('No transactions','Try widening your filters.') :
     `<table class="dtable"><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${idxList.map(txnRowHTML).join('')}</tbody></table>`;
@@ -1294,7 +1266,7 @@ function getTxnIndices(){
     });
   }
   const sort = STATE.tableSort['txns'] || {col:'date', dir:'desc'};
-  const numericFieldMap = {date:F_DATE, qty:F_QTY, price:F_PRICE, invoice:F_INV, taxamount:F_TAX, subtotal:F_SUBTOTAL, cashpaid:F_CASHPAID};
+  const numericFieldMap = {date:F_DATE, qty:F_QTY, price:F_PRICE, invoice:F_INV};
   const dimFieldMap = {market:F_MARKET, manager:F_DM, store:F_STORE, employee:F_EMP, product:F_ITEM, category:F_CATEGORY, activation:F_ACT, payment:F_PAY, status:F_STATUS};
   const dimArrMap = {market:DB.dims.markets, manager:DB.dims.managers, store:DB.dims.stores, employee:DB.dims.employees, product:DB.dims.items, category:DB.dims.categories, activation:DB.dims.acttypes, payment:DB.dims.paytypes, status:DB.dims.statuses};
   if(numericFieldMap[sort.col]!=null){
@@ -1335,10 +1307,9 @@ function refreshTxnsPage(){
   const {pageRows, total} = paginateRows(idx, page, perPage);
   const sort = STATE.tableSort['txns']||{col:'date',dir:'desc'};
   const headers = [
-    {key:'invoice', label:'Invoice'},{key:'market', label:'Market'},{key:'manager', label:'District Manager'},{key:'store', label:'Store'},
+    {key:'invoice', label:'Invoice'},{key:'date', label:'Date'},{key:'market', label:'Market'},{key:'manager', label:'District Manager'},{key:'store', label:'Store'},
     {key:'employee', label:'Employee'},{key:'product', label:'Product'},{key:'category', label:'Category'},{key:'activation', label:'Activation'},
-    {key:'payment', label:'Payment'},{key:'status', label:'Status'},{key:'qty', label:'Qty'},{key:'price', label:'Price'},
-    {key:'taxamount', label:'Tax Amount'},{key:'subtotal', label:'Subtotal'},{key:'cashpaid', label:'Cash Paid'}
+    {key:'payment', label:'Payment'},{key:'status', label:'Status'},{key:'qty', label:'Qty'},{key:'price', label:'Price'}
   ];
   document.getElementById('txnTableWrap').innerHTML = !pageRows.length ? emptyStateHTML('No transactions found','Try a different search or clear your filters.') : `
     <table class="dtable"><thead><tr>${headers.map(h=>`<th data-col="${h.key}" class="${sort.col===h.key?'sorted '+sort.dir:''}">${h.label}</th>`).join('')}</tr></thead>
@@ -1357,10 +1328,10 @@ function refreshTxnsPage(){
 function exportTxnsCSV(){
   const idx = getTxnIndices();
   const capped = idx.slice(0, 20000);
-  const headers = ['Invoice','Market','DM','Store Name','Employee Name','itmdesc','Category','acttype','paytype','Status','qty','price','discount','taxamount','subtotal','cashpaid'];
+  const headers = ['Invoice','Date','Market','DM','Store Name','Employee Name','itmdesc','Category','acttype','paytype','Status','qty','price','discount','taxamount','subtotal'];
   const rows = capped.map(i=>{
     const r = DB.fact[i];
-    return [r[F_INV], DB.dims.markets[r[F_MARKET]], DB.dims.managers[r[F_DM]], DB.dims.stores[r[F_STORE]], DB.dims.employees[r[F_EMP]], DB.dims.items[r[F_ITEM]], DB.dims.categories[r[F_CATEGORY]], DB.dims.acttypes[r[F_ACT]], DB.dims.paytypes[r[F_PAY]], DB.dims.statuses[r[F_STATUS]], r[F_QTY], r[F_PRICE].toFixed(2), r[F_DISCOUNT].toFixed(2), r[F_TAX].toFixed(2), r[F_SUBTOTAL].toFixed(2), r[F_CASHPAID].toFixed(2)];
+    return [r[F_INV], DB.dims.dates[r[F_DATE]], DB.dims.markets[r[F_MARKET]], DB.dims.managers[r[F_DM]], DB.dims.stores[r[F_STORE]], DB.dims.employees[r[F_EMP]], DB.dims.items[r[F_ITEM]], DB.dims.categories[r[F_CATEGORY]], DB.dims.acttypes[r[F_ACT]], DB.dims.paytypes[r[F_PAY]], DB.dims.statuses[r[F_STATUS]], r[F_QTY], r[F_PRICE].toFixed(2), r[F_DISCOUNT].toFixed(2), r[F_TAX].toFixed(2), r[F_SUBTOTAL].toFixed(2)];
   });
   exportCSV('transactions_export.csv', headers, rows);
   if(idx.length>20000) toast('Exported the first 20,000 matching rows (of '+fmtNum(idx.length)+').','info');
@@ -1391,7 +1362,7 @@ function renderDataPage(){
           <div class="data-meta-chip"><b>${fmtMoney(totalPriceOfAllRows())}</b><span>Total Price (SUM of price column)</span></div>
           <div class="data-meta-chip"><b>${(DB.meta&&DB.meta.generated)||'—'}</b><span>Last refreshed</span></div>
         </div>
-        <button class="btn-secondary" id="resetBtn" style="margin-top:14px;">${ic('refresh')} Reload live data from Google Sheets</button>
+        <button class="btn-secondary" id="resetBtn" style="margin-top:14px;">${ic('refresh')} Reload live data from Supabase</button>
       </div>
       <div class="panel">
         <div class="panel-head"><div class="panel-title">Expected columns</div><div class="panel-sub">Headers can appear in any order — common naming variations are matched automatically.</div></div>
@@ -1423,11 +1394,11 @@ function renderDataPage(){
   document.getElementById('browseBtn').onclick = (e)=>{ e.stopPropagation(); fileInput.click(); };
   document.getElementById('templateBtn').onclick = (e)=>{ e.stopPropagation(); downloadSampleTemplate(); };
   document.getElementById('resetBtn').onclick = async ()=>{
-    toast('Reloading data from Google Sheets…','info');
+    toast('Reloading data from Supabase…','info');
     try{
       const payload = await loadDataset();
       loadPayloadObject(payload); clearAllFilters(); STATE.calPeriodIdx=null; STATE.tableSearch={}; STATE.tableSort={}; STATE.tablePage={};
-      toast('Reloaded the live dataset from Google Sheets.','success'); goTo('overview');
+      toast('Reloaded the live dataset from Supabase.','success'); goTo('overview');
     }catch(e){ toast('Could not reload live data: '+(e&&e.message?e.message:e),'error'); }
   };
   fileInput.onchange = ()=>{ if(fileInput.files[0]) processUploadedFile(fileInput.files[0]); };
@@ -1480,8 +1451,8 @@ function showBootError(err){
     + 'font-family:Arimo,Arial,sans-serif;color:#241C3F;text-align:left;box-shadow:0 14px 38px rgba(58,31,158,.12)">'
     + '<div style="font-weight:700;font-size:17px;margin-bottom:8px;">Couldn\'t load dashboard data</div>'
     + '<div style="font-size:14px;color:#6B6680;line-height:1.5;">'+ msg
-    + '<br><br>Check that <code>config.js</code> has the correct Apps Script Web App URL, '
-    + 'that the deployment is set to "Anyone can access", and that you have an internet connection.'
+    + '<br><br>Check that <code>config.js</code> has the correct Supabase URL and anon key, '
+    + 'that Row Level Security allows anon SELECT on the table, and that you have an internet connection.'
     + '</div></div>';
   if(overlay){ overlay.innerHTML = html; } else { document.body.insertAdjacentHTML('afterbegin', html); }
 }
@@ -1505,6 +1476,33 @@ function startAutoRefresh(){
 }
 
 async function boot(){
+  const cached = (typeof loadCachedPayload === 'function') ? loadCachedPayload() : null;
+
+  if(cached){
+    // Paint instantly with the last known-good data so the dashboard
+    // never sits on a blank spinner for a returning visitor.
+    loadPayloadObject(cached);
+    renderShell();
+    goTo('overview');
+    const overlay = document.getElementById('loading-overlay');
+    if(overlay) overlay.remove();
+
+    // Then quietly fetch the latest data in the background and swap it
+    // in once it arrives — no spinner, no interruption.
+    try{
+      const fresh = await loadDataset();
+      loadPayloadObject(fresh);
+      renderShell();
+      goTo(STATE.page || 'overview');
+    }catch(err){
+      console.warn('Background refresh failed, keeping cached data on screen:', err);
+    }
+    startAutoRefresh();
+    return;
+  }
+
+  // No cache yet (first-ever visit on this device) — show the spinner
+  // until the live fetch completes, same as before.
   try{
     const payload = await loadDataset();
     loadPayloadObject(payload);
@@ -1519,3 +1517,4 @@ async function boot(){
   if(overlay) overlay.remove();
 }
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
+
